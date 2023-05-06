@@ -1,0 +1,50 @@
+name: Release
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 3 * * *"
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: 1715173329/sing-geosite
+      - name: Set 1715173329/sing-geosite
+        run: |
+          sed -i 's/Loyalsoldier\/v2ray-rules-dat/caocaocc\/geosite/g; s/1715173329\/sing-geosite/caocaocc\/sing-geosite/g' main.go
+      - name: Get latest go version
+        id: version
+        run: |
+          echo "go_version=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g')" >> $GITHUB_OUTPUT
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ steps.version.outputs.go_version }}
+      - name: Build geosite
+        id: build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          go run -v .
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: geosite.db
+          path: geosite.db
+      - name: Generate sha256 hash
+        run: |
+          sha256sum geosite.db > geosite.db.sha256sum
+      - name: Create a release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.build.outputs.tag }}
+          name: ${{ steps.build.outputs.tag }}
+          draft: false
+          prerelease: false
+          files: |
+            geosite.db
+            geosite.db.sha256sum
